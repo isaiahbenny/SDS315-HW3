@@ -1,0 +1,146 @@
+---
+title: "Homework 3"
+author:
+- Isaiah Benny
+- "EID: ieb357"
+date: "2024-02-08"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=5, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60), echo = FALSE, message = FALSE, fig.align = 'center')
+```
+
+```{r, include=F}
+library(tidyverse)
+library(knitr)
+library(mosaic)
+```
+
+# [Github](https://github.com/isaiahbenny/SDS315-HW3)
+
+------------------------------------------------------------------------
+
+# Problem 1
+
+# Part A
+
+```{r}
+creatinine <- read.csv("creatinine.csv")
+
+#Linear model predicting creatinine clearance rate using age
+creatinine_lm <- lm(creatclear ~ age, data = creatinine)
+
+#Plug in 55 into age
+e_creatclear_55 <- (coef(creatinine_lm)[1] + 55*coef(creatinine_lm)[2]) %>% unname()
+```
+
+For a 55-year-old, we should expect them to have a creatinine clearance rate of `r e_creatclear_55 %>% round(3)`. I determined this value by creating a linear regression model based on the given data that predicts creatinine clearance rate given age. This gives us the formula $E(Creatinine\;Clearance\;Rate|Age) =  `r coef(creatinine_lm)[1] %>% round(3)` `r coef(creatinine_lm)[2] %>% round(3)` \cdot Age$. Plugging in 55 for age then gives us the creatinine clearance rate should we expect for a 55-year-old.
+
+# Part B
+On average, creatinine clearance rate changes by `r coef(creatinine_lm)[2] %>% unname() %>% round(3)` ml/minute per year. I determined this by taking the same linear model and finding the slope of the line, which tells us the average rate of change of creatinine clearance rate after one year.
+
+# Part C
+```{r}
+# Create dataframe of the two observations
+creatinine_comp <- data.frame(age = c(40,60), creatclear = c(135,112))
+
+# Calculate the residuals for each observation by subtracting actual from predicted
+creatinine_comp <- mutate(creatinine_comp, residual = creatclear - predict(creatinine_lm, newdata=creatinine_comp))
+```
+A creatinine clearance rate of 135 for a 40-year-old is healthier than a clearance rate of 112 for a 60-year-old. This is because the 40-year-old would have a higher residual. Using the formula $E(Creatinine\;Clearance\;Rate|Age) =  `r coef(creatinine_lm)[1] %>% round(3)` `r coef(creatinine_lm)[2] %>% round(3)` \cdot Age$, we can predict the creatinine clearance rate for each age. Then, to get the two residuals, we can subtract the two predicted values from their respective actual value. Performing these calculations lets us know that the 40-year-old has a residual of `r creatinine_comp$residual[1] %>% round(3)` while the 60-year-old has a residual of `r creatinine_comp$residual[2] %>% round(3)`, meaning that the 40-year-old has a healthier creatinine clearance rate for their age.
+
+\newpage
+# Problem 2
+```{r, fig.height=4}
+marketmodel <- read.csv("marketmodel.csv")
+
+# Get all of the stock tickers
+ticker <- names(marketmodel)[3:8]
+
+# Create empty list of alphas, betas, and r squared values
+alpha <- vector()
+beta <- vector()
+r_squared <- vector()
+
+# Loop through each ticker
+for (i in 1:6) {
+  # Create a linear model for each ticker and store alpha, beta, and r squared
+  linear_model <- lm(eval(parse(text = ticker[i])) ~ SPY, data=marketmodel)
+  alpha[i] <- coef(linear_model)[1]
+  beta[i] <- coef(linear_model)[2]
+  r_squared[i] <- rsquared(linear_model)
+}
+
+# Combine into a single data frame
+lm_stocks <- data.frame("ticker" = ticker, "alpha" = alpha, "beta" = round(beta,3), "r_squared" = round(r_squared,3))
+```
+The "beta" of a stock measures the percent change in the return of that stock (which is the percentage change in the price of the stock)  after a one percent change in the return of the market (or in this case the S&P 500). In other words, beta represents the slope of the line given by least squares regression that is used to predict the rate of return of a stock with the rate of return of the entire market. The Capital Asset
+Pricing Model assumes that a stock's return can be represented by a linear regression model. Thus, the beta of a stock is calculated in the same manner that the slope of a least squares regression line is calculated. A high beta indicates that the return of a stock would increase/decrease along with the overall market, but in a more exaggerated manner. On the other hand, a low beta shows that the return of the stock would increase/decrease along with the overall market, but to a lesser extent. Thus, a high beta has more systematic risk than a low beta.
+
+```{r, fig.height=4}
+# Table of results
+kable(lm_stocks, col.names = c("Ticker", "Alpha", "Beta", "R Squared"))
+```
+
+The table above shows 6 different stocks and their respective alpha values (intercepts), beta values (slopes) and $R^2$ values. These values come from the linear regression models that use the returns of the S&P 500 to predict the returns of each stock.
+
+The stock with the lowest systematic risk is Wal-Mart, since it has the lowest beta. The stock with the highest systematic risk is Apple, as it has the highest beta value.
+\newpage
+
+# Problem 3
+
+## Part 1
+```{r}
+covid <- read.csv("covid.csv")
+
+# Filter the data based on country and make a linear model for each
+covid_spain <- filter(covid, country=="Spain")
+covid_italy <- filter(covid, country=="Italy")
+
+lm_covid_spain <- lm(log(deaths)~days_since_first_death, data=covid_spain)
+
+lm_covid_italy <- lm(log(deaths)~days_since_first_death, data=covid_italy)
+
+# Get growth rate from slope of linear model
+italy_growth_rate <- coef(lm_covid_italy)[2] %>% unname() %>% round(3)
+
+# Doubling time is ln(2) / growth rate
+italy_doubling_time <- (log(2) / italy_growth_rate) %>% round()
+```
+The estimated daily growth rate for COVID-19 deaths in Italy was `r italy_growth_rate`. The doubling time for COVID-19 deaths was `r italy_doubling_time` days.
+
+## Part 2
+```{r}
+# Repeat for Spain
+spain_growth_rate <- coef(lm_covid_spain)[2] %>% unname() %>% round(3)
+
+spain_doubling_time <- (log(2) / spain_growth_rate) %>% round()
+```
+The estimated daily growth rate for COVID-19 deaths in Spain was `r spain_growth_rate`. The estimated doubling time was `r spain_doubling_time` days.
+
+## Part 3
+```{r}
+# Line graph
+ggplot(covid) + geom_line(aes(x=days_since_first_death, y=deaths, col=country)) +
+  xlab("Days Since First Covid Death") + ylab("Daily Deaths") + ggtitle("Daily Covid Deaths Over Time for Italy and Spain") + guides(col=guide_legend(title="Country"))
+```
+
+The line graph above displays the reported daily deaths over time for both Spain and Italy.
+
+\newpage
+
+# Problem 4
+```{r}
+milk <- read.csv("milk.csv")
+
+# Take the log of both sides of the power equation then make a linear model
+lm_milk <- lm(log(sales) ~ log(price), data=milk)
+
+# Price elasticity of demand is the slope
+price_elasticity_of_demand <- coef(lm_milk)[2] %>% unname()
+```
+
+The estimated price elasticity of demand, $\beta$, for milk is `r price_elasticity_of_demand %>% round(3)`. To get this number, I created a linear regression model that predicts the log of sales using the log of price. Because of logarithm rules, $\beta$ becomes a coefficient to $log(P)$. This means that $\beta$ is equal to the slope of the model.
